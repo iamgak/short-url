@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	// "github.com/ivinayakg/shorte.live/api/database"
 )
 
 type user_struct struct {
