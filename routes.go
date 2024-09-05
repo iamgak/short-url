@@ -19,6 +19,5 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/", app.home)
 	router.HandlerFunc(http.MethodGet, "/get/:hash", app.redirect)
 	router.Handler(http.MethodPost, "/create/shortner", auth.ThenFunc(app.add_url))
-	// router.HandleFunc("/add/custom_url", app.custom_add_url)
 	return secureHeaders(app.logRequest(router))
 }

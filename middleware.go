@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"strconv"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func secureHeaders(next http.Handler) http.Handler {
@@ -27,19 +29,27 @@ func (app *application) logRequest(next http.Handler) http.Handler {
 func (app *application) LoginMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("ldata")
-		if err != nil || cookie.Value == "" || len(cookie.Value) != 40 {
+		if err != nil || cookie.Value == "" {
 			if err != nil {
-				app.Errorlog.Print(err)
+				if err == http.ErrNoCookie {
+					app.Errorlog.Print("Cookie not found")
+				} else {
+					app.Errorlog.Print(err)
+				}
 			}
 
 			app.ErrorMessage(w, http.StatusUnauthorized, "User need to Login")
 			return
 		}
 
-		userID, err := app.Shortner.RedisGet("login_" + cookie.Value)
+		app.Infolog.Print(cookie.Value)
+		userID, err := app.Shortner.RedisGet(cookie.Value)
 		if err != nil {
-			app.ErrorMessage(w, http.StatusUnauthorized, "User need to Login")
-			app.Errorlog.Print(err)
+			if err != redis.Nil {
+				app.Errorlog.Print(err)
+			}
+
+			app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
 			return
 		}
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -47,20 +46,7 @@ func main() {
 		Errorlog: errorLog,
 		Shortner: Init(sql, client),
 	}
-	ctx := context.Background()
-	err = client.Set(ctx, "foo", "bar111", 0).Err()
-	if err != nil {
-		panic(err)
-	}
-
-	val, err := client.Get(ctx, "foo").Result()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("foo", val)
-
-	port := flag.String("port", ":8010", "Http Connection Port Addres")
+	port := flag.String("port", ":8080", "Http Connection Port Addres")
 
 	serve := &http.Server{
 		Addr:    *port,

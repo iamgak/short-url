@@ -57,13 +57,16 @@ func (m *ShortnerModel) CreateShortner(long_url string, user_id int) (string, er
 }
 
 // check isbn already exist or not()
-func (m *ShortnerModel) GetShortner(hash_value string) (string, error) {
+func (m *ShortnerModel) GetShortner(long_url string) (string, error, bool) {
+	var hash_value string
+	var active bool
+	err := m.db.QueryRow("SELECT `hash`, `active` FROM `url_shortner` WHERE  `long_url` = ? ", long_url).Scan(&hash_value, &active)
+	return hash_value, err, active
+}
+
+func (m *ShortnerModel) GetLongURL(hash_value string) (string, error) {
 	var long_url string
 	err := m.db.QueryRow("SELECT `long_url` FROM `url_shortner` WHERE  `hash` = ? AND active = 1", hash_value).Scan(&long_url)
-	if err != nil {
-		return "", err
-	}
-
 	return long_url, err
 }
 
@@ -87,7 +90,7 @@ func (m *ShortnerModel) base62Encode(id int64) string {
 
 func (m *ShortnerModel) RedisSet(key, value string) error {
 	err := m.redis.Set(m.ctx, key, value, 5*time.Minute).Err()
-	m.Close()
+	// m.Close()
 	return err
 }
 
@@ -95,3 +98,8 @@ func (m *ShortnerModel) RedisGet(hash_value string) (string, error) {
 	val, err := m.redis.Get(m.ctx, hash_value).Result()
 	return val, err
 }
+
+// func (m *ShortnerModel) RedisSrc(long_url string) ([]string, error) {
+// 	keys, err := m.redis.Keys(m.ctx, fmt.Sprintf("*%s*", long_url)).Result()
+// 	return keys, err
+// }

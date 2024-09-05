@@ -22,7 +22,7 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, "Hello From URL Shortner !!")
+	app.FinalMessage(w, 200, "Hello From URL Shortner !!")
 }
 
 func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
@@ -50,12 +50,17 @@ func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url, err := app.Shortner.GetShortner(hash)
+	url, err, active := app.Shortner.GetShortner(hash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			app.ErrorMessage(w, http.StatusInternalServerError, "Error404 Page Not found")
 			return
 		}
+	}
+
+	if !active {
+		app.FinalMessage(w, 200, "URL is inactive")
+		return
 	}
 
 	err = app.Shortner.IncrementHit(hash)
@@ -96,7 +101,24 @@ func (app *application) add_url(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hash, err := app.Shortner.CreateShortner(long_url, app.User_id)
+	hash, err, active := app.Shortner.GetShortner(long_url)
+	if err == nil {
+		if !active {
+			app.FinalMessage(w, 200, "Inactive URL "+hash)
+			return
+		}
+
+		app.FinalMessage(w, 200, "Already Registered and have short url is  "+hash)
+		return
+	} else {
+		if err != sql.ErrNoRows {
+			app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
+			app.Errorlog.Print(err)
+			return
+		}
+	}
+
+	hash, err = app.Shortner.CreateShortner(long_url, app.User_id)
 	if err != nil && err != sql.ErrNoRows {
 		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
 		app.Errorlog.Print(err)
@@ -110,7 +132,7 @@ func (app *application) add_url(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Your Short Url is created %s", hash)
+	app.FinalMessage(w, http.StatusCreated, "Your Short Url is created "+hash)
 }
 
 func (app *application) ErrorMessage(w http.ResponseWriter, statusCode int, Message any) {
