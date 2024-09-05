@@ -1,12 +1,24 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/julienschmidt/httprouter"
+	"github.com/justinas/alice"
+)
 
 func (app *application) routes() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", app.home)
-	mux.HandleFunc("/get/shortner", app.get_url)
-	mux.HandleFunc("/create/shortner", app.add_url)
-	mux.HandleFunc("/add/custom_url", app.custom_add_url)
-	return app.middleware(mux)
+	router := httprouter.New()
+	router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	})
+
+	auth := alice.New(app.LoginMiddleware)
+
+	//home related routes
+	router.HandlerFunc(http.MethodGet, "/", app.home)
+	router.HandlerFunc(http.MethodGet, "/get/:hash", app.redirect)
+	router.Handler(http.MethodPost, "/create/shortner", auth.ThenFunc(app.add_url))
+	// router.HandleFunc("/add/custom_url", app.custom_add_url)
+	return secureHeaders(app.logRequest(router))
 }

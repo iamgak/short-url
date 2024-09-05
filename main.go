@@ -1,26 +1,64 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/redis/go-redis/v9"
+	_ "github.com/go-sql-driver/mysql" // sql pool register
+	"github.com/joho/godotenv"
 )
 
 type application struct {
-	Infolog *log.Logger
-	Redis   *redis.Client
+	Infolog  *log.Logger
+	Errorlog *log.Logger
+	Shortner *ShortnerModel
+	User_id  int
 }
 
 func main() {
+	err := godotenv.Load()
 
-	logger := log.New(os.Stdout, "URL-Shortner ", log.Ldate|log.Lshortfile)
-	app := application{
-		Infolog: logger,
-		Redis:   InitRedis("localhost", "6379", ""),
+	if err != nil {
+		log.Fatal("Error loading .env file:", err)
 	}
+
+	dbUser := os.Getenv("DB_USER")
+	dbName := os.Getenv("DB_NAME")
+	RedisName := os.Getenv("R_NAME")
+	RedisPassword := os.Getenv("R_PASSW")
+	RedisPort := os.Getenv("R_PORT")
+	dsn := flag.String("dsn", fmt.Sprintf("%s:@/%s?parseTime=true", dbUser, dbName), "MySQL data source name")
+	// dsn := flag.String("dsn", fmt.Sprintf("%s:@/%s?parseTime=true", dbUser, dbName), "MySQL data source name")
+	flag.Parse()
+	sql, err := openDB(*dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := log.New(os.Stdout, "URL-Shortner ", log.Ldate|log.Lshortfile)
+	client := InitRedis(RedisName, RedisPort, RedisPassword)
+	app := application{
+		Infolog:  logger,
+		Errorlog: errorLog,
+		Shortner: Init(sql, client),
+	}
+	ctx := context.Background()
+	err = client.Set(ctx, "foo", "bar111", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	val, err := client.Get(ctx, "foo").Result()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("foo", val)
 
 	port := flag.String("port", ":8010", "Http Connection Port Addres")
 
@@ -30,7 +68,7 @@ func main() {
 	}
 
 	app.Infolog.Print("URL-Shortner is Ready to cut your URL. Till the date of Judgement(365billion records) !!")
-	err := serve.ListenAndServe()
+	err = serve.ListenAndServe()
 	if err != nil {
 		panic(err)
 	}
