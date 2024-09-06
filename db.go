@@ -70,6 +70,11 @@ func (m *ShortnerModel) GetLongURL(hash_value string) (string, error) {
 	return long_url, err
 }
 
+func (m *ShortnerModel) RemoveHash(hash_value string, user_id int) error {
+	_, err := m.db.Exec("UPDATE `url_shortner` SET `active` = 0  WHERE `hash` = ? AND `user_id` = ?", hash_value, user_id)
+	return err
+}
+
 func (m *ShortnerModel) IncrementHit(hash_value string) error {
 	_, err := m.db.Exec("UPDATE `url_shortner` SET `traffic` = `traffic`+1 ,`active` = 1 WHERE `hash` = ?", hash_value)
 	return err

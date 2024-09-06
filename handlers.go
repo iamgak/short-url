@@ -25,12 +25,30 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	app.FinalMessage(w, 200, "Hello From URL Shortner !!")
 }
 
-func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		app.ErrorMessage(w, http.StatusMethodNotAllowed, "Method Not Allowed")
+func (app *application) remove_url(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	hash := params.ByName("hash")
+
+	pattern := regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+	if !pattern.MatchString(hash) {
+		app.ErrorMessage(w, http.StatusNotFound, "Error404 Page Not found")
 		return
 	}
 
+	err := app.Shortner.RemoveHash(hash, app.User_id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			app.ErrorMessage(w, http.StatusForbidden, "Access Denied !!")
+		} else {
+			app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
+			app.Errorlog.Print(err)
+		}
+		return
+	}
+
+	app.FinalMessage(w, 200, "URL Removed Successfully")
+}
+func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	hash := params.ByName("hash")
 
@@ -82,11 +100,6 @@ func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) add_url(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		app.ErrorMessage(w, http.StatusMethodNotAllowed, "Method Not Allowed")
-		return
-	}
-
 	err := r.ParseForm()
 	if err != nil {
 		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")

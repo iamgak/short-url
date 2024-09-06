@@ -1,6 +1,7 @@
 package main
 
 import (
+	"expvar"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -19,5 +20,9 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/", app.home)
 	router.HandlerFunc(http.MethodGet, "/get/:hash", app.redirect)
 	router.Handler(http.MethodPost, "/create/shortner", auth.ThenFunc(app.add_url))
-	return secureHeaders(app.logRequest(router))
+	router.Handler(http.MethodPost, "/disable/:shortner", auth.ThenFunc(app.remove_url))
+	router.Handler(http.MethodGet, "/api/dbg/", expvar.Handler())
+
+	standard := alice.New(app.rateLimit, secureHeaders, app.recoverPanic, app.metrics, app.logRequest)
+	return standard.Then(router)
 }

@@ -16,6 +16,13 @@ type application struct {
 	Errorlog *log.Logger
 	Shortner *ShortnerModel
 	User_id  int
+	Limiter  limiter
+}
+
+type limiter struct {
+	rps   int
+	burst int
+	rate  int
 }
 
 func main() {
@@ -45,6 +52,10 @@ func main() {
 		Infolog:  logger,
 		Errorlog: errorLog,
 		Shortner: Init(sql, client),
+		Limiter: limiter{
+			rps:  1,
+			rate: 1, burst: 2,
+		},
 	}
 	port := flag.String("port", ":8080", "Http Connection Port Addres")
 
