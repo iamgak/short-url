@@ -25,13 +25,6 @@ func secureHeaders(next http.Handler) http.Handler {
 	})
 }
 
-func (app *application) logRequest(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.Infolog.Printf("%s - %s %s %s", r.RemoteAddr, r.Proto, r.Method, r.URL.RequestURI())
-		next.ServeHTTP(w, r)
-	})
-}
-
 func (app *application) LoginMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("ldata")
@@ -112,6 +105,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 		clients = make(map[string]*client)
 	)
 
+	// this part is to release older ip
 	go func() {
 		for {
 			// it will run until code run but take break every minute laziness
@@ -132,16 +126,20 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// to print Remote Addr, Protocol, Method, URL path in log
 		app.Infolog.Printf("ip_addr-%s  http-%s method-%s uri-%s", r.RemoteAddr, r.Proto, r.Method, r.URL.RequestURI())
+
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			app.ErrorMessage(w, 501, "Internal Server Error")
 			app.Errorlog.Print(err)
 			return
 		}
-		// Lock the mutex to prevent this code from being executed concurrently.
 
+		// Lock the mutex to prevent this code from being executed concurrently.
 		mu.Lock()
+
 		if _, found := clients[ip]; !found {
 			// Create and add a new client struct to the map if it doesn't already exist.
 			clients[ip] = &client{
@@ -149,6 +147,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 			}
 		}
 
+		//main work is done here concurrently checking all the clients[ip] if there is more than given burst, rps than it wont allow
 		clients[ip].lastSeen = time.Now()
 		if !clients[ip].limiter.Allow() {
 			mu.Unlock()

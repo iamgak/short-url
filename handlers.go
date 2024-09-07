@@ -100,45 +100,47 @@ func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) add_url(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
+	type LongURL struct {
+		Url string
+	}
+
+	var long_url *LongURL
+	err := json.NewDecoder(r.Body).Decode(&long_url)
 	if err != nil {
-		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
-		app.Errorlog.Print(err)
+		app.ErrorMessage(w, http.StatusInternalServerError, "Invalid JSON payload")
 		return
 	}
 
-	long_url := r.PostForm.Get("long_url")
-
-	if long_url == "" {
+	if long_url.Url == "" {
 		app.ErrorMessage(w, http.StatusNotFound, "URL Not Found")
 		return
 	}
 
-	hash, err, active := app.Shortner.GetShortner(long_url)
-	if err == nil {
-		if !active {
+	hash, err, active := app.Shortner.GetShortner(long_url.Url)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
+			app.Errorlog.Print(err)
+			return
+		}
+	} else {
+		if hash != "" && !active {
 			app.FinalMessage(w, 200, "Inactive URL "+hash)
 			return
 		}
 
 		app.FinalMessage(w, 200, "Already Registered and have short url is  "+hash)
 		return
-	} else {
-		if err != sql.ErrNoRows {
-			app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
-			app.Errorlog.Print(err)
-			return
-		}
 	}
 
-	hash, err = app.Shortner.CreateShortner(long_url, app.User_id)
+	hash, err = app.Shortner.CreateShortner(long_url.Url, app.User_id)
 	if err != nil && err != sql.ErrNoRows {
 		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
 		app.Errorlog.Print(err)
 		return
 	}
 
-	err = app.Shortner.RedisSet(hash, long_url)
+	err = app.Shortner.RedisSet(hash, long_url.Url)
 	if err != nil {
 		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
 		app.Errorlog.Print(err)

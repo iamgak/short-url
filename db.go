@@ -34,13 +34,6 @@ func Init(db *sql.DB, redis *redis.Client) *ShortnerModel {
 // add books in db
 func (m *ShortnerModel) CreateShortner(long_url string, user_id int) (string, error) {
 	var hash_value string
-	err := m.db.QueryRow("SELECT `hash` FROM `url_shortner` WHERE  `long_url` = ? AND active = 1", long_url).Scan(&hash_value)
-	if err == nil {
-		return hash_value, err
-	} else if err != sql.ErrNoRows {
-		return hash_value, err
-	}
-
 	result, err := m.db.Exec("INSERT INTO `url_shortner` (`long_url`,`user_id`) VALUES (?,?)", &long_url, &user_id)
 	if err != nil {
 		return "", err
@@ -60,7 +53,7 @@ func (m *ShortnerModel) CreateShortner(long_url string, user_id int) (string, er
 func (m *ShortnerModel) GetShortner(long_url string) (string, error, bool) {
 	var hash_value string
 	var active bool
-	err := m.db.QueryRow("SELECT `hash`, `active` FROM `url_shortner` WHERE  `long_url` = ? ", long_url).Scan(&hash_value, &active)
+	err := m.db.QueryRow("SELECT `hash`, `active` FROM `url_shortner` WHERE  `long_url` = ? AND `active` = 1", long_url).Scan(&hash_value, &active)
 	return hash_value, err, active
 }
 

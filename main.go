@@ -38,11 +38,17 @@ func main() {
 	RedisPassword := os.Getenv("R_PASSW")
 	RedisPort := os.Getenv("R_PORT")
 	dsn := flag.String("dsn", fmt.Sprintf("%s:@/%s?parseTime=true", dbUser, dbName), "MySQL data source name")
-	// dsn := flag.String("dsn", fmt.Sprintf("%s:@/%s?parseTime=true", dbUser, dbName), "MySQL data source name")
+
+	// flag.parse tell that no more flag after this or parse above flag
 	flag.Parse()
 	sql, err := openDB(*dsn)
 	if err != nil {
 		panic(err)
+	}
+	limiter := limiter{
+		rps:   2,
+		rate:  1,
+		burst: 3,
 	}
 
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
@@ -52,10 +58,7 @@ func main() {
 		Infolog:  logger,
 		Errorlog: errorLog,
 		Shortner: Init(sql, client),
-		Limiter: limiter{
-			rps:  1,
-			rate: 1, burst: 2,
-		},
+		Limiter:  limiter,
 	}
 	port := flag.String("port", ":8080", "Http Connection Port Addres")
 
