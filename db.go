@@ -69,7 +69,7 @@ func (m *ShortnerModel) RemoveHash(hash_value string, user_id int) error {
 }
 
 func (m *ShortnerModel) IncrementHit(hash_value string) error {
-	_, err := m.db.Exec("UPDATE `url_shortner` SET `traffic` = `traffic`+1 ,`active` = 1 WHERE `hash` = ?", hash_value)
+	_, err := m.db.Exec("UPDATE `url_shortner` SET `traffic` = `traffic`+1  WHERE `hash` = ?", hash_value)
 	return err
 }
 

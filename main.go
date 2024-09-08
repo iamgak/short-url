@@ -35,9 +35,10 @@ func main() {
 	dbUser := os.Getenv("DB_USER")
 	dbName := os.Getenv("DB_NAME")
 	RedisName := os.Getenv("R_NAME")
+	dbPassword := os.Getenv("DB_PASSWORD")
 	RedisPassword := os.Getenv("R_PASSW")
 	RedisPort := os.Getenv("R_PORT")
-	dsn := flag.String("dsn", fmt.Sprintf("%s:@/%s?parseTime=true", dbUser, dbName), "MySQL data source name")
+	dsn := flag.String("dsn", fmt.Sprintf("%s:%s@/%s?parseTime=true", dbUser, dbPassword, dbName), "MySQL data source name")
 
 	// flag.parse tell that no more flag after this or parse above flag
 	flag.Parse()
@@ -45,6 +46,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = SeedData(sql)
+	if err != nil {
+		panic(err)
+	}
+
 	limiter := limiter{
 		rps:   2,
 		rate:  1,

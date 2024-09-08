@@ -17,7 +17,7 @@ func (app *application) routes() http.Handler {
 
 	//home related routes
 	router.HandlerFunc(http.MethodGet, "/", app.home)
-	router.HandlerFunc(http.MethodGet, "/get/:hash", app.redirect)
+	router.HandlerFunc(http.MethodGet, "/get/:shortner", app.redirect)
 	router.Handler(http.MethodPost, "/create/shortner", auth.ThenFunc(app.add_url))
 	router.Handler(http.MethodPost, "/disable/:shortner", auth.ThenFunc(app.remove_url))
 	// router.Handler(http.MethodGet, "/api/dbg/", expvar.Handler())

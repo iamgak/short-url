@@ -25,3 +25,19 @@ func openDB(dsn string) (*sql.DB, error) {
 	}
 	return db, nil
 }
+
+func SeedData(db *sql.DB) error {
+	// Create the url_shortner table if it doesn't exist
+	_, err := db.Exec(`
+        CREATE TABLE IF NOT EXISTS url_shortner (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            long_url VARCHAR(255) NOT NULL,
+            hash VARCHAR(255) DEFAULT NULL,
+			active TINYINT(1) DEFAULT 0,
+			traffic INT DEFAULT 0,
+			user_id INT NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+        )AUTO_INCREMENT = 1000;`)
+
+	return err
+}

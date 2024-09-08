@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"regexp"
 
@@ -27,7 +26,7 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
 func (app *application) remove_url(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
-	hash := params.ByName("hash")
+	hash := params.ByName("shortner")
 
 	pattern := regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 	if !pattern.MatchString(hash) {
@@ -48,9 +47,10 @@ func (app *application) remove_url(w http.ResponseWriter, r *http.Request) {
 
 	app.FinalMessage(w, 200, "URL Removed Successfully")
 }
+
 func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
-	hash := params.ByName("hash")
+	hash := params.ByName("shortner")
 
 	pattern := regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 	if !pattern.MatchString(hash) {
@@ -58,44 +58,47 @@ func (app *application) redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	val, err := app.Shortner.RedisGet(hash)
-	if err == nil {
-		app.FinalMessage(w, 200, fmt.Sprintf("your URL is %s", val))
-		return
-	} else if err != sql.ErrNoRows && err != redis.Nil {
-		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
-		app.Errorlog.Print(err)
-		return
-	}
-
-	url, err, active := app.Shortner.GetShortner(hash)
+	url, err := app.Shortner.RedisGet(hash)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			app.ErrorMessage(w, http.StatusInternalServerError, "Error404 Page Not found")
+		if err != redis.Nil {
+			app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
+			app.Errorlog.Print(err)
 			return
-		}
-	}
+		} else {
+			url, err := app.Shortner.GetLongURL(hash)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					app.ErrorMessage(w, http.StatusInternalServerError, "Error404 Page Not found")
+					return
+				}
 
-	if !active {
-		app.FinalMessage(w, 200, "URL is inactive")
-		return
+				app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
+				app.Errorlog.Print(err)
+				return
+			}
+
+			if url == "" {
+				app.FinalMessage(w, 200, "URL is inactive")
+				return
+			}
+
+			err = app.Shortner.RedisSet(hash, url)
+			if err != nil {
+				app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
+				app.Errorlog.Print(err)
+				return
+			}
+		}
 	}
 
 	err = app.Shortner.IncrementHit(hash)
 	if err != nil {
-		// Internal Server Error
 		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
 		app.Errorlog.Print(err)
 		return
 	}
 
-	err = app.Shortner.RedisSet(hash, url)
-	if err != nil {
-		app.ErrorMessage(w, http.StatusInternalServerError, "Internal Server Error")
-		app.Errorlog.Print(err)
-		return
-	}
-
+	// Redirect to given url
 	http.Redirect(w, r, url, http.StatusPermanentRedirect)
 }
 
